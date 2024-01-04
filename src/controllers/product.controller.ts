@@ -1,14 +1,33 @@
-import {NextFunction, Request, Response} from 'express'
-import { PrismaClient } from '@prisma/client';
-import bodyParser from 'body-parser';
-import { stringify } from 'querystring';
+import { NextFunction, Request, Response } from 'express'
+import { prisma } from '../db'
+import { 
+    getAllProducts,
+    saveProduct,
+    destroyProduct,
+    updateProduct
+} from '../repository';
+import { productInsertSchema } from '../utils/validations';
+import { invalidPayloadResp } from '../utils/response';
 
-const prisma = new PrismaClient()
 
 export const getProducts = async(req: Request, res:Response, next:NextFunction)=>{
     try{
-        
-        const products = await prisma.product.findMany();
+        const products = await getAllProducts();
+        res.send(products)
+    }catch (error) {
+        next(error);
+    }
+}
+
+export const getProduct = async(req: Request, res:Response, next:NextFunction)=>{
+    try{
+        const products = await prisma.product.findUnique({
+            where:{id: req.params.id}
+        });
+
+        if(!products){
+            return res.status(400).send('Product not fount')
+        }
         res.send(products)
     }catch (error) {
         next(error);
@@ -17,21 +36,16 @@ export const getProducts = async(req: Request, res:Response, next:NextFunction)=
 
 export const storeProduct = async(req: Request, res:Response, next:NextFunction)=>{
     try{
-        const newProductData = await req.body
-
-        const product = await prisma.product.create({
-            data: {
-                name        :   newProductData.name,
-                description :   newProductData.description,
-                image       :   newProductData.image,
-                price       :   newProductData.price
-            },
+        const validationResult = productInsertSchema.safeParse({
+            ...req.body
         });
 
-        res.send({
-            message : "Create product success",
-            data : product
-        })
+        if (!validationResult.success) {
+            return invalidPayloadResp(res, validationResult.error);
+        }
+
+        const product = await saveProduct(validationResult.data);
+        res.send(product)
     }catch (error) {
         next(error);
     }
@@ -39,18 +53,35 @@ export const storeProduct = async(req: Request, res:Response, next:NextFunction)
 
 export const deleteProduct = async(req:Request, res:Response, next:NextFunction)=>{
     try{
-        const productId = req.params.productId
+        const productId = req.params.id
+        const deleteProduct = await destroyProduct(productId)
+        res.send(deleteProduct)
 
-        const deleteProduct = await prisma.product.delete({
-            where:{
-                id : productId
-            }
-        })
+    }catch(error){
+        next(error)
+    }
+}
 
-        res.send({
-            message : "berhasil melakukan penghapusan data",
-            data : deleteProduct
-        })
+export const putProduct =async (req:Request, res:Response, next:NextFunction)=>{
+     try{
+        const productId = req.params.id
+        const productData = req.body
+
+        const products = await updateProduct(productId,productData)
+        res.send(products)
+    }catch(error){
+        next(error)
+    }
+}
+
+
+export const patchProduct =async (req:Request, res:Response, next:NextFunction)=>{
+    try{
+        const productId = req.params.id
+        const productData = req.body
+
+        const products = await updateProduct(productId,productData)
+        res.send(products)
     }catch(error){
         next(error)
     }
