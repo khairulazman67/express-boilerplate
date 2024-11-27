@@ -1,6 +1,9 @@
-import { PrismaClient } from '@prisma/client';
-const prisma = new PrismaClient()
+import { PrismaClient } from "@prisma/client";
+const prisma = new PrismaClient();
 
-export {
-    prisma
-}
+type TxPrismaClient = Omit<
+  PrismaClient,
+  "$connect" | "$disconnect" | "$on" | "$transaction" | "$use" | "$extends"
+>;
+
+export { prisma, TxPrismaClient };

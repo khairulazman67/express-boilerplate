@@ -1,31 +1,35 @@
-import express, {Application, Request, Response} from "express"
-import dotenv from "dotenv"
+import "reflect-metadata";
+import express from "express";
+import "./dependencyInjection";
+import AuthRoute from "./routes/auth.route";
+import { BadRouteError } from "./utils/errors/DynamicCustomError";
+import { errorHandler } from "./middleware/error-handler.middleware";
+import { logger } from "./logs/pino";
+import { pinoHttp } from "pino-http";
+import dotenv from "dotenv";
 
-import {
-    apiRoutes
-} from './routers';
+dotenv.config();
+const app = express();
+const port = process.env.PORT;
 
-dotenv.config()
+// Middleware
+app.use(express.json());
 
-const PORT = process.env.PORT;
-
-class App{
-    public app: Application;
-    
-
-    constructor(){
-        this.app = express()
-        this.app.use(express.json())
-        this.routes();
-    }
-
-    protected routes():void{
-        this.app.use('/v1/', apiRoutes);
-    }
+// Routes
+if (process.env.HTTP_LOG_ENABLED === "true") {
+  app.use(pinoHttp({ logger }));
 }
 
-const app = new App().app;
+app.use("/v1/auth", AuthRoute);
 
-app.listen(PORT,()=>{
-    console.log("Express API running in port : ", PORT)
+app.all("/*", () => {
+  throw new BadRouteError();
+});
+
+// Error handling middleware
+app.use(errorHandler);
+
+// Start server
+app.listen(port, () => {
+  console.log(`Server is running on http://localhost:${port}`);
 });
